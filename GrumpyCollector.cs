@@ -50,7 +50,6 @@ namespace GrumpyCollector
             {
                 GC.Collect(0, GCCollectionMode.Forced);
                 lastGC = Time.realtimeSinceStartup;
-                MonoBehaviour.print("Forced GC");
             }
         }
 
