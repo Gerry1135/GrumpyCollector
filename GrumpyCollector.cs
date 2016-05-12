@@ -15,12 +15,13 @@ namespace GrumpyCollector
         private Rect windowPos = new Rect(40, 40, 150, 46);
         private Rect windowDragRect = new Rect(0, 0, 150, 46);
 
-        private Rect labelRectInterval = new Rect(10, 18, 70, 20);
-        private Rect labelRectRate = new Rect(90, 18, 50, 20);
+        private Rect labelRectInterval = new Rect(10, 18, 80, 20);
+        private Rect labelRectRate = new Rect(92, 18, 48, 20);
 
         private float interval = 0f;
         private string strInterval;
 
+        [Persistent] private bool enableGC = false;
         [Persistent] private int intervalIdx = 2;
 
         private float lastGC = 0;
@@ -56,6 +57,10 @@ namespace GrumpyCollector
                 {
                     showUI = !showUI;
                 }
+                if (Input.GetKeyDown(KeyCode.KeypadDivide))
+                {
+                    enableGC = !enableGC;
+                }
                 if (Input.GetKeyDown(KeyCode.KeypadPlus))
                 {
                     intervalIdx--;
@@ -76,7 +81,7 @@ namespace GrumpyCollector
                 }
             }
 
-            if (showUI && Time.realtimeSinceStartup > lastGC + interval)
+            if (enableGC && (Time.realtimeSinceStartup > lastGC + interval))
             {
                 GC.Collect(0, GCCollectionMode.Forced);
                 lastGC = Time.realtimeSinceStartup;
@@ -97,7 +102,7 @@ namespace GrumpyCollector
 
         public void WindowGUI(int windowID)
         {
-            GUI.Label(labelRectInterval, "GC Interval:");
+            GUI.Label(labelRectInterval, enableGC ? "GC Enabled:" : "GC Disabled:");
             GUI.Label(labelRectRate, strInterval);
             GUI.DragWindow(windowDragRect);
         }
