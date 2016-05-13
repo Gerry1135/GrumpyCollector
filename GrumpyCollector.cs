@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Text;
 using KSP.IO;
 using UnityEngine;
 
@@ -7,26 +8,35 @@ namespace GrumpyCollector
     [KSPAddon(KSPAddon.Startup.Instantly, false)]
     public class GrumpyCollector : MonoBehaviour
     {
-
         private const string cfgName = "GrumpyCollector.cfg";
 
         private bool showUI = false;
 
-        private Rect windowPos = new Rect(40, 40, 50, 50);
+        private Rect windowPos = new Rect(40, 40, 150, 46);
+        private Rect windowDragRect = new Rect(0, 0, 150, 46);
 
-        private float interval = 0.5f;
+        private Rect labelRectInterval = new Rect(10, 18, 80, 20);
+        private Rect labelRectRate = new Rect(92, 18, 48, 20);
 
+        private float interval = 0f;
+        private string strInterval;
+
+        [Persistent] private bool enableGC = false;
         [Persistent] private int intervalIdx = 2;
 
         private float lastGC = 0;
+
+        private StringBuilder strBuild;
 
         internal void Awake()
         {
             DontDestroyOnLoad(gameObject);
 
+            strBuild = new StringBuilder(32);
+
             if (File.Exists<GrumpyCollector>(cfgName))
             {
-                ConfigNode config = ConfigNode.Load(IOUtils.GetFilePathFor(this.GetType(), cfgName));
+                ConfigNode config = ConfigNode.Load(IOUtils.GetFilePathFor(GetType(), cfgName));
                 ConfigNode.LoadObjectFromConfig(this, config);
             }
             SetInterval();
@@ -36,17 +46,42 @@ namespace GrumpyCollector
         {
             ConfigNode node = new ConfigNode("GrumpyCollector");
             ConfigNode.CreateConfigFromObject(this, node);
-            node.Save(IOUtils.GetFilePathFor(this.GetType(), cfgName));
+            node.Save(IOUtils.GetFilePathFor(GetType(), cfgName));
         }
 
         void Update()
         {
-            SetInterval();
-            if (Input.GetKey(KeyCode.LeftControl) && Input.GetKeyDown(KeyCode.KeypadMultiply))
+            if (Input.GetKey(KeyCode.LeftControl))
             {
-                showUI = !showUI;
+                if (Input.GetKeyDown(KeyCode.KeypadMultiply))
+                {
+                    showUI = !showUI;
+                }
+                if (Input.GetKeyDown(KeyCode.KeypadDivide))
+                {
+                    enableGC = !enableGC;
+                }
+                if (Input.GetKeyDown(KeyCode.KeypadPlus))
+                {
+                    intervalIdx--;
+                    if (intervalIdx == 0)
+                        intervalIdx = -2;
+                    else if (intervalIdx < -10)
+                        intervalIdx = -10;
+                    SetInterval();
+                }
+                if (Input.GetKeyDown(KeyCode.KeypadMinus))
+                {
+                    intervalIdx++;
+                    if (intervalIdx == 0)
+                        intervalIdx = 2;
+                    else if (intervalIdx > 10)
+                        intervalIdx = 10;
+                    SetInterval();
+                }
             }
-            if (Time.realtimeSinceStartup > lastGC + interval)
+
+            if (enableGC && (Time.realtimeSinceStartup > lastGC + interval))
             {
                 GC.Collect(0, GCCollectionMode.Forced);
                 lastGC = Time.realtimeSinceStartup;
@@ -57,58 +92,32 @@ namespace GrumpyCollector
         {
             if (showUI)
             {
-                windowPos = GUILayout.Window(
+                windowPos = GUI.Window(
                     8785499,
                     windowPos,
                     WindowGUI,
-                    "GrumpyCollector",
-                    GUILayout.ExpandWidth(true),
-                    GUILayout.ExpandHeight(true));
+                    "GrumpyCollector");
             }
         }
 
         public void WindowGUI(int windowID)
         {
-            GUILayout.BeginVertical();
-
-            GUILayout.Label("Forced Garbage Interval");
-
-            GUILayout.BeginHorizontal();
-
-            if (GUILayout.Button("Faster", GUILayout.ExpandWidth(true)))
-            {
-                intervalIdx++;
-                if (intervalIdx == 0)
-                    intervalIdx = 2;
-            }
-
-            GUILayout.Label(string.Format("{0} s", interval.ToString("F3")), GUILayout.ExpandWidth(true));
-
-            if (GUILayout.Button("Slower", GUILayout.ExpandWidth(true)))
-            {
-                intervalIdx--;
-                if (intervalIdx == 0)
-                    intervalIdx = -2;
-            }
-
-            intervalIdx = Mathf.Clamp(intervalIdx, -10, 10);
-
-            GUILayout.EndHorizontal();
-
-            GUILayout.EndVertical();
-
-            GUI.DragWindow();
+            GUI.Label(labelRectInterval, enableGC ? "GC Enabled:" : "GC Disabled:");
+            GUI.Label(labelRectRate, strInterval);
+            GUI.DragWindow(windowDragRect);
         }
 
         private void SetInterval()
         {
-            if (intervalIdx > 0)
+            float newinterval = (intervalIdx > 0) ? 1f / intervalIdx : -intervalIdx;
+            if (newinterval != interval)
             {
-                interval = 1f / intervalIdx;
-            }
-            else
-            {
-                interval = -intervalIdx;
+                interval = newinterval;
+                strBuild.Length = 0;
+                strBuild.Append(interval);
+                strBuild.Length = (interval == 10f) ? 6 : 5;
+                strBuild.Append(" s");
+                strInterval = strBuild.ToString();
             }
         }
     }
